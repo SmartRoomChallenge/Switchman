@@ -1,5 +1,5 @@
 {
-  "name": "ESPServer",
+  "name": "Switchman",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -8,6 +8,7 @@
   "dependencies": {
     "express": "~4.13.1",
     "debug": "*",
-    "mdns-js": "*"
+    "mdns-js": "*",
+    "http-proxy": "*"
   }
 }

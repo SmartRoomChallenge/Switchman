@@ -1,15 +1,16 @@
 var express = require('express');
 var router = express.Router();
 var mdns = require('mdns-js');
-var net = require('net');
-var http = require('http');
+var httpProxy = require('http-proxy');
 
 //if you have another mdns daemon running, like avahi or bonjour, uncomment following line
 mdns.excludeInterface('0.0.0.0');
 
 var browser = mdns.createBrowser('_iot-http._tcp');
 browser.on('ready', function () {
+	browser.discover();
 	setTimeout(browser.discover, 10000);
+	console.log("Discovering every 10 seconds")
 });
 
 var devices = new (function Devices(){
@@ -31,8 +32,8 @@ var devices = new (function Devices(){
 		return idTable[ip]
 	}
 	
-	this.set = function(ip, socket){
-		internalRepr[getId(ip)] = socket;
+	this.add = function(ip){
+		internalRepr[getId(ip)] = ip;
 	}
 	this.get = function(id){
 		return internalRepr[id];
@@ -40,7 +41,7 @@ var devices = new (function Devices(){
 	this.remove = function(ip){
 		if(internalRepr[getId(ip)] != undefined){
 			//Remove device as the connection was closed
-			internalRepr[getId(ip)] = undefined;
+			delete internalRepr[getId(ip)];
 		}
 	}
 	this.getIds = function(){
@@ -48,53 +49,33 @@ var devices = new (function Devices(){
 	}
 })();
 
+//This may have an internal cache that keeps as a blacklist for update
 browser.on('update', function (data) {
-	//console.log("Found device with ip: "+data.addresses[0]+"!");
+	console.log("Found device: "+JSON.stringify(data));
 	var ip = data.addresses[0];
 
-	var socket = net.createConnection({port:219, host: ip}, function(){
-		console.log("Connection established");
-		devices.set(ip, socket)
-	});
-
-	socket.on('error', function(err){
-		//console.log("Could not connect to ip: "+err.message);
-	});
-
-	socket.on('close',function(err){
-		console.log("Connection closed");
-		devices.remove(ip);
-	})
+	devices.add(ip);
 });
 
 /* GET devices listing. */
 router.get('/', function(req, res, next) {
-	//console.log("request for devices");
+	console.log("request for devices");
 	res.json(devices.getIds())
 });
-
+var proxy = httpProxy.createProxyServer();
 /* Forward requests to selected device */
 router.all(['/:id', '/:id*'], function(req, res, next){
-	if(devices.get(req.params.id) != undefined){		
-		
-		var device = devices.get(req.params.id);
-		//Construct an http request to socket 'device'
-		var options = {
-			host:device.address()['address'],
-			port:219,
-			method: req.method,
-			path: req.url.substr(req.params.id.length+1),
-			headers:req.headers,
-			createConnection: function(){
-				return device;
-			}
-		}
-		var proxyReq = http.request(options);
-		req.pipe(proxyReq); //Pipe request body to proxy
-		device.pipe(req.socket); //Pipe response to requester
+	console.log("Got request for /:id");
+	if(devices.get(req.params.id) != undefined){
+		req.url = req.url.substr(req.params.id.length+1);		
+		proxy.web(req, res, { target: 'http://'+devices.get(req.params.id)+':219'}, function(err){
+			console.log("Error: "+err.message);
+			devices.remove(req.params.id)
+		});
 	}else{
 		res.sendStatus(404);
 	}
+
 })
 
 module.exports = router;
