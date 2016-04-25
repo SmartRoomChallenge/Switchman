@@ -79,7 +79,6 @@ browser.on('update', function (data) {
 	console.log("Found device: "+JSON.stringify(data));
 	var ip = data.addresses[0];
 	devices.add(ip);
-	publishIp(ip); //Publish to central server
 });
 
 /* GET devices listing. */

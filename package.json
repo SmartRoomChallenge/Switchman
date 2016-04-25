@@ -10,6 +10,7 @@
     "debug": "*",
     "mdns-js": "*",
     "http-proxy": "*",
-    "cors": "*"
+    "cors": "*",
+    "underscore": "*"
   }
 }
