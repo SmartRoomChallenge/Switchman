@@ -9,6 +9,7 @@
     "express": "~4.13.1",
     "debug": "*",
     "mdns-js": "*",
-    "http-proxy": "*"
+    "http-proxy": "*",
+    "cors": "*"
   }
 }
