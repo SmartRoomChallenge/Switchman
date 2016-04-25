@@ -2,6 +2,8 @@ var express = require('express');
 var router = express.Router();
 var mdns = require('mdns-js');
 var httpProxy = require('http-proxy');
+var http = require('http');
+var querystring = require('querystring');
 
 //if you have another mdns daemon running, like avahi or bonjour, uncomment following line
 mdns.excludeInterface('0.0.0.0');
@@ -49,12 +51,35 @@ var devices = new (function Devices(){
 	}
 })();
 
+function publishIp(ip){
+	var post_data = querystring.stringify({
+      'apiKey' : '6YJhgwrnVYwF7KR',
+      'apiSecret': '8pyeitR02Dck7CRu1ZpJatp650xas2',
+      'ip': ip
+ 	});
+	var post_options = {
+		host: 'demo.smartroomchallenge.net',
+		path: '/api',
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded',
+			'Content-Length': Buffer.byteLength(post_data)
+		}
+	};
+
+	// Set up the request
+	var post_req = http.request(post_options, function(res) {
+		res.setEncoding('utf8');
+	});
+	post_req.write(post_data);
+}
+
 //This may have an internal cache that keeps as a blacklist for update
 browser.on('update', function (data) {
 	console.log("Found device: "+JSON.stringify(data));
 	var ip = data.addresses[0];
-
 	devices.add(ip);
+	publishIp(ip); //Publish to central server
 });
 
 /* GET devices listing. */
